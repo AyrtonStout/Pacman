@@ -35,21 +35,21 @@
   [entity direction]
   (case direction
     :down (and
-            (every? #(corridor? (+ (:x entity) %) (- (:y entity) 11)) (range 0 (:width entity)))
-            (corridor? (:x entity) (- (:y entity) 3))
-            (corridor? (+ (:x entity) (:width entity)) (- (:y entity) 3)))
+            (every? #(corridor? (:x entity) (- (:y entity) %)) (range 0 20))
+            (every? #(corridor? (+ (:x entity) (:width entity)) (- (:y entity) %)) (range 0 20))
+            (every? #(corridor? (+ (:x entity) (/ (:width entity) 2)) (- (:y entity) %)) (range 0 20)))
     :up (and
-          (every? #(corridor? (+ (:x entity) %) (+ (:y entity) (:height entity) 11)) (range 0 (:width entity)))
-          (corridor? (:x entity) (+ (:y entity) (:height entity) 3))
-          (corridor? (+ (:x entity) (:width entity)) (+ (:y entity) (:height entity) 3)))
+          (every? #(corridor? (:x entity) (+ (:y entity) (:height entity) %)) (range 0 20))
+          (every? #(corridor? (+ (:x entity) (:width entity)) (+ (:y entity) (:height entity) %)) (range 0 20))
+          (every? #(corridor? (+ (:x entity) (/ (:width entity) 2)) (+ (:y entity) (:height entity) %)) (range 0 20)))
     :right (and
-             (every? #(corridor? (+ (:x entity) (:width entity) 13) (+ (:y entity) %)) (range 0 (:height entity)))
-             (corridor? (+ (:x entity) (:width entity) 2) (:y entity))
-             (corridor? (+ (:x entity) (:width entity) 2) (+ (:y entity) (:height entity))))
+             (every? #(corridor? (+ (:x entity) (:width entity) %) (:y entity)) (range 0 20))
+             (every? #(corridor? (+ (:x entity) (:width entity) %) (+ (:y entity) (:height entity))) (range 0 20))
+             (every? #(corridor? (+ (:x entity) (:width entity) %) (+ (:y entity) (/ (:height entity) 2))) (range 0 20)))
     :left (and
-            (every? #(corridor? (- (:x entity) 13) (+ (:y entity) %)) (range 0 (:height entity)))
-            (corridor? (- (:x entity) 3) (:y entity))
-            (corridor? (- (:x entity) 3) (+ (:y entity) (:height entity))))
+            (every? #(corridor? (- (:x entity) %) (:y entity)) (range 0 20))
+            (every? #(corridor? (- (:x entity) %) (+ (:y entity) (:height entity))) (range 0 20))
+            (every? #(corridor? (- (:x entity) %) (+ (:y entity) (/ (:height entity) 2))) (range 0 20))            )
     false))
 
 (defn move-entity
@@ -86,38 +86,54 @@
       pacman)))
 
 (defn move-AI
-  [entity]
-  (if (= (:direction entity) :none)
-    (case (rand-int 4)
-      0 (if (valid-turn entity :down)
-          (assoc entity :direction :down)
-          entity)
-      1 (if (valid-turn entity :up)
-          (assoc entity :direction :up)
-          entity)
-      2 (if (valid-turn entity :right)
-          (assoc entity :direction :right)
-          entity)
-      3 (if (valid-turn entity :left)
-          (assoc entity :direction :left)
-          entity))
-    (move-entity entity)))
+  [ghost]
 
+
+  (if (<= (:cooldown ghost) 0)
+    (let [directions (atom [])]
+      (do
+        (when (and (valid-turn ghost :down) (not= (:direction ghost) :up))
+          (swap! directions conj :down))
+        (when (and (valid-turn ghost :up) (not= (:direction ghost) :down))
+          (swap! directions conj :up))
+        (when (and (valid-turn ghost :left) (not= (:direction ghost) :right))
+          (swap! directions conj :left))
+        (when (and (valid-turn ghost :right) (not= (:direction ghost) :left))
+          (swap! directions conj :right))
+        (when (valid-move-forward ghost)
+          (swap! directions conj (:direction ghost)))
+
+        (if (> (count @directions) 0)
+          (let [index (rand-int (count @directions))]
+            (if (not= (nth @directions index) (:direction ghost))
+              (-> ghost
+                  (assoc :direction (nth @directions index))
+                  (assoc :cooldown 10)
+                  (move-entity))
+              (move-entity ghost)))
+          ghost)))
+    (if (valid-move-forward ghost)
+      (-> ghost
+          (assoc :cooldown (dec (:cooldown ghost)))
+          (move-entity))
+      (assoc ghost :cooldown (dec (:cooldown ghost))))))
 
 (defscreen main-screen
            :on-show
            (fn [screen entities]
-             (add-timer! screen :systick 1 0.0111111111)
-             (add-timer! screen :animation 1 0.075)
+             (add-timer! screen :systick 1 0.01)
+             (add-timer! screen :animation 0 0.075)
              (update! screen :renderer (stage))
              (reset! background (pixmap "background.png"))
 
              (let [background (assoc (texture "background.png") :type :ui, :x 0 :y 0)
                    pacman (assoc (texture "pacman-sheet.png") :id :pacman, :type :player, :x 208, :y 206, :width 26, :height 26, :direction :right)
-                   blinky (assoc (texture "blinky.png") :id :blinky, :type :ghost, :x 75, :y 350, :width 26, :height 26, :direction :none)
-                   pinky (assoc (texture "pinky.png") :id :blinky, :type :ghost, :x 135, :y 350, :width 26, :height 26, :direction :none)
-                   inky (assoc (texture "inky.png") :id :blinky, :type :ghost, :x 195, :y 350, :width 26, :height 26, :direction :none)
-                   clyde (assoc (texture "clyde.png") :id :blinky, :type :ghost, :x 255, :y 350, :width 26, :height 26, :direction :none)
+                   ;(texture! pacman :set-region-x 64)
+                   ;(texture! pacman :set-region-width 32)
+                   blinky (assoc (texture "blinky.png") :id :blinky, :type :ghost, :x 75, :y 350, :width 26, :height 26, :direction :none, :cooldown 0)
+                   pinky (assoc (texture "pinky.png") :id :blinky, :type :ghost, :x 135, :y 350, :width 26, :height 26, :direction :none, :cooldown 0)
+                   inky (assoc (texture "inky.png") :id :blinky, :type :ghost, :x 195, :y 350, :width 26, :height 26, :direction :none, :cooldown 0)
+                   clyde (assoc (texture "clyde.png") :id :blinky, :type :ghost, :x 255, :y 350, :width 26, :height 26, :direction :none, :cooldown 0)
                    score-text (assoc (label "Score: 1337" (color :white)) :type :ui, :x 35, :y 484)]
                [background pacman blinky pinky inky clyde score-text]))
 
@@ -183,8 +199,7 @@
                    (texture! pacman :set-region-x (mod (+ (texture! (second entities) :get-region-x) 32) 96))
                    (texture! pacman :set-region-width 32)
                    )
-                 entities)
-               )))
+                 entities))))
 
 (defgame pacman-game
          :on-create
