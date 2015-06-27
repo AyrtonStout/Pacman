@@ -19,7 +19,7 @@
 
 (defn corridor?
   [x y]
-  (within? (get-color-at x y) 255 1119215))
+  (within? (get-color-at x y) 0 1119215))
 
 (defn valid-move-forward
   "Returns true if the next pixel in front of the entity is not a wall"
@@ -30,6 +30,12 @@
     :right (corridor? (+ (:x entity) (:width entity) 1) (+ (:y entity) 13))
     :left (corridor? (- (:x entity) 2) (+ (:y entity) 13))
     :none false))
+
+(defn spawn-clones
+  [entities]
+  (if (= (:x (second entities)) 0)
+    (conj entities (assoc (texture "pacman-sheet.png") :id (:id (second entities)), :type (:type (second entities)), :x (- (game :width) 1), :y (:y (second entities)), :width 26, :height 26, :direction :left))
+    entities))
 
 (defn valid-turn
   [entity direction]
@@ -49,7 +55,7 @@
     :left (and
             (every? #(corridor? (- (:x entity) %) (:y entity)) (range 0 20))
             (every? #(corridor? (- (:x entity) %) (+ (:y entity) (:height entity))) (range 0 20))
-            (every? #(corridor? (- (:x entity) %) (+ (:y entity) (/ (:height entity) 2))) (range 0 20))            )
+            (every? #(corridor? (- (:x entity) %) (+ (:y entity) (/ (:height entity) 2))) (range 0 20)))
     false))
 
 (defn move-entity
@@ -85,10 +91,9 @@
                   (assoc :angle 180)))
       pacman)))
 
+
 (defn move-AI
   [ghost]
-
-
   (if (<= (:cooldown ghost) 0)
     (let [directions (atom [])]
       (do
@@ -122,7 +127,7 @@
            :on-show
            (fn [screen entities]
              (add-timer! screen :systick 1 0.01)
-             (add-timer! screen :animation 0 0.075)
+             (add-timer! screen :animation 1 0.075)
              (update! screen :renderer (stage))
              (reset! background (pixmap "background.png"))
 
@@ -131,9 +136,9 @@
                    ;(texture! pacman :set-region-x 64)
                    ;(texture! pacman :set-region-width 32)
                    blinky (assoc (texture "blinky.png") :id :blinky, :type :ghost, :x 75, :y 350, :width 26, :height 26, :direction :none, :cooldown 0)
-                   pinky (assoc (texture "pinky.png") :id :blinky, :type :ghost, :x 135, :y 350, :width 26, :height 26, :direction :none, :cooldown 0)
-                   inky (assoc (texture "inky.png") :id :blinky, :type :ghost, :x 195, :y 350, :width 26, :height 26, :direction :none, :cooldown 0)
-                   clyde (assoc (texture "clyde.png") :id :blinky, :type :ghost, :x 255, :y 350, :width 26, :height 26, :direction :none, :cooldown 0)
+                   pinky (assoc (texture "pinky.png") :id :pinky, :type :ghost, :x 135, :y 350, :width 26, :height 26, :direction :none, :cooldown 0)
+                   inky (assoc (texture "inky.png") :id :inky, :type :ghost, :x 195, :y 350, :width 26, :height 26, :direction :none, :cooldown 0)
+                   clyde (assoc (texture "clyde.png") :id :clyde, :type :ghost, :x 255, :y 350, :width 26, :height 26, :direction :none, :cooldown 0)
                    score-text (assoc (label "Score: 1337" (color :white)) :type :ui, :x 35, :y 484)]
                [background pacman blinky pinky inky clyde score-text]))
 
@@ -142,7 +147,6 @@
              (clear!)
              (render! screen entities))
 
-           ;;Pac-Man is always the 1st indexed entity
            :on-key-down
            (fn [screen entities]
              (cond
@@ -185,14 +189,15 @@
            (fn [screen entities]
              (case (:id screen)
                :systick
-               (reduce (fn [coll e]
-                         (conj coll
-                               (case (:type e)
-                                 :ghost (move-AI e)
-                                 :player (move-entity (change-direction e))
-                                 e)))
-                       []
-                       entities)
+               (let [new-entities (spawn-clones entities)]
+                 (reduce (fn [coll e]
+                           (conj coll
+                                 (case (:type e)
+                                   :ghost (move-AI e)
+                                   :player (move-entity (change-direction e))
+                                   e)))
+                         []
+                         new-entities))
                :animation
                (if (not= (:direction (second entities)) :none)
                  (let [pacman (second entities)]
@@ -200,6 +205,19 @@
                    (texture! pacman :set-region-width 32)
                    )
                  entities))))
+
+               ;(reduce (fn [coll e]
+               ;          (conj coll
+               ;                (case (:type e)
+               ;                  :ghost (identity e)
+               ;                  :player (identity e)
+               ;                  ;(do
+               ;                  ;  (texture! e :set-region-x (mod (+ (texture! e :get-region-x) 32) 96))
+               ;                  ;  (texture! e :set-region-width 32))
+               ;                  :ui (identity e)
+               ;                  e)))
+               ;        []
+               ;        entities))))
 
 (defgame pacman-game
          :on-create
