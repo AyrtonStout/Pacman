@@ -32,10 +32,15 @@
     :none false))
 
 (defn spawn-clones
-  [entities]
-  (if (= (:x (second entities)) 0)
-    (conj entities (assoc (texture "pacman-sheet.png") :id (:id (second entities)), :type (:type (second entities)), :x (- (game :width) 1), :y (:y (second entities)), :width 26, :height 26, :direction :left))
-    entities))
+  [entities1]
+  (loop [entities entities1 i (dec (count entities1))]
+    (if (< i 0)
+      entities
+      (let [curr (nth entities i)]
+        (cond
+          (= (:x curr) 0) (recur (conj entities (assoc (texture (:object curr)) :id (:id curr), :type (:type curr), :x (- (game :width) 1), :y (:y curr), :width 26, :height 26, :direction :left, :cooldown 10)) (dec i))
+          (= (:x curr) (game :width)) (recur entities (dec i))
+          :else (recur entities (dec i)))))))
 
 (defn valid-turn
   [entity direction]
@@ -131,7 +136,7 @@
              (update! screen :renderer (stage))
              (reset! background (pixmap "background.png"))
 
-             (let [background (assoc (texture "background.png") :type :ui, :x 0 :y 0)
+             (let [background (assoc (texture "background.png") :type :ui, :x 1 :y 0)
                    pacman (assoc (texture "pacman-sheet.png") :id :pacman, :type :player, :x 208, :y 206, :width 26, :height 26, :direction :right)
                    ;(texture! pacman :set-region-x 64)
                    ;(texture! pacman :set-region-width 32)
@@ -199,29 +204,23 @@
                          []
                          new-entities))
                :animation
-               (if (not= (:direction (second entities)) :none)
-                 (let [pacman (second entities)]
-                   (texture! pacman :set-region-x (mod (+ (texture! (second entities) :get-region-x) 32) 96))
-                   (texture! pacman :set-region-width 32)
-                   )
-                 entities))))
-
-               ;(reduce (fn [coll e]
-               ;          (conj coll
-               ;                (case (:type e)
-               ;                  :ghost (identity e)
-               ;                  :player (identity e)
-               ;                  ;(do
-               ;                  ;  (texture! e :set-region-x (mod (+ (texture! e :get-region-x) 32) 96))
-               ;                  ;  (texture! e :set-region-width 32))
-               ;                  :ui (identity e)
-               ;                  e)))
-               ;        []
-               ;        entities))))
+               (reduce (fn [coll e]
+                         (conj coll
+                              (case (:type e)
+                                 :ghost (identity e)
+                                 :player (if (not= (:direction e) :none)
+                                           (do
+                                             (texture! e :set-region-x (mod (+ (texture! e :get-region-x) 32) 96))
+                                             (texture! e :set-region-width 32)
+                                             e)
+                                           e)
+                                 :ui (identity e)
+                                 e)))
+                       []
+                       entities))))
 
 (defgame pacman-game
          :on-create
          (fn [this]
            (set-screen! this main-screen)))
-
 
