@@ -16,7 +16,6 @@
   [x y]
   (assoc @pellet :type :pellet-small, :x x, :y y, :width 3, :height 3))
 
-
 (defn create-all-dots
   []
   (-> []
@@ -120,6 +119,7 @@
     coll))
 
 (defn increment-score!
+  "Totes broken"
   [entities]
   (do
     (label! (second entities) :set-text (str (+ (:score (second entities)) 10)))
@@ -130,7 +130,7 @@
   (let [list (collision-list entities)]
     (do
       (reset! dead (= true (first (filter true? list))))
-      (increment-score! (second entities))
+      ;(increment-score! (second entities))
       (drop-nth entities (first (filter integer? list))))))
 
 (defn valid-turn
@@ -287,8 +287,8 @@
            (fn [screen entities]
              (case (:id screen)
                :systick
-               ;(if (dead? entities)
-                 ;(println "dead")
+               (if (= @dead true)
+                 (println "dead")
                  (let [new-entities (clear-clones (spawn-clones entities))]
                    (manage-collisions! (reduce (fn [coll e]
                                                (conj coll
@@ -297,7 +297,7 @@
                                                        :player (move-entity (change-direction e))
                                                        e)))
                                              []
-                                             new-entities)))
+                                             new-entities))))
                ;)
                :animation
                (reduce (fn [coll e]
