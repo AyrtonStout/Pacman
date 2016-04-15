@@ -8,8 +8,9 @@ Click the image for a demo video
 ## Building and Running
 From the root directory, run "lein repl" and then execute the function (-main)
 
-Note that due to poor design the game will not run well on slower hardware in its current state.
-
 
 ###Additional Notes
+This was written by somebody who was just starting to learn Clojure and shouldn't be used as an example of how Clojure should be written.
+Also, due to a poor design decision the game will not run well on slower hardware in its current state.
+
 The faces used for the ghosts are of consenting coworkers / friends. I wasn't taking out my frustrations on them.
